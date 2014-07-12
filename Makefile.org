@@ -1,0 +1,34 @@
+all: system.bit
+
+$(TARGET).ncd: $(TARGET).ngd
+	map $(TARGET).ngd
+
+$(TARGET)-routed.ncd: $(TARGET).ncd
+	par -ol high -xe n -w $(TARGET).ncd $(TARGET)-routed.ncd
+
+$(TARGET).bit: $(TARGET)-routed.ncd
+	bitgen -w $(TARGET)-routed.ncd $(TARGET).bit
+
+$(TARGET).mcs: $(TARGET).bit
+	promgen -w -u 0 $(TARGET)
+
+$(TARGET)-routed.xdl: $(TARGET)-routed.ncd
+	xdl -ncd2xdl $(TARGET)-routed.ncd $(TARGET)-routed.xdl
+
+$(TARGET)-routed.twr: $(TARGET)-routed.ncd
+	trce -v 10 $(TARGET)-routed.ncd $(TARGET).pcf
+
+$(TARGET).prj: $(HDL_SRC)
+	rm -f $(TARGET).prj
+	for i in `echo $^`; do \
+	    echo "verilog work $$i" >> $(TARGET).prj; \
+	done
+
+$(TARGET).ngc: $(TARGET).prj
+	xst -ifn $(TARGET).xst
+
+$(TARGET).ngd: $(TARGET).ngc $(TARGET).ucf
+	ngdbuild -uc $(TARGET).ucf $(TARGET).ngc
+
+clean:
+	ls | grep -v Makefile | grep -v $(TARGET).ucf | grep -v $(TARGET).xst | grep -v main.v | grep -v rules.mk | xargs rm -Rf 
